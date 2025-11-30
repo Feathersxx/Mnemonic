@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mnemonic Flashcards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              serif: ['"Playfair Display"', 'serif'],
+              sans: ['Inter', 'sans-serif'],
+              cn: ['"Noto Serif SC"', 'serif'],
+            },
+            colors: {
+              sage: {
+                50: '#f4f7f5',
+                100: '#e3ebe6',
+                200: '#c5d9cd',
+                500: '#6b9a7e',
+                700: '#4a6b57',
+                900: '#3d5246',
+              }
+            },
+            animation: {
+              'swing-in': 'swingIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+              'swing-out': 'swingOut 0.5s cubic-bezier(0.600, -0.280, 0.735, 0.045) forwards',
+              'fadeIn': 'fadeIn 0.3s ease-out forwards',
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        transition: background-color 0.5s ease;
+      }
+      .perspective-1000 {
+        perspective: 1200px;
+      }
+      .transform-style-3d {
+        transform-style: preserve-3d;
+      }
+      .backface-hidden {
+        backface-visibility: hidden;
+      }
+      .rotate-y-180 {
+        transform: rotateY(180deg);
+      }
+      .rotate-x-2 {
+         transform: rotateY(180deg) rotateX(2deg);
+      }
+      
+      /* Highlighting for target words */
+      .highlight-word {
+        color: #b45309; /* amber-700 */
+        font-weight: 700;
+        background-color: rgba(254, 243, 199, 0.6); /* amber-100/60 */
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+
+      /* Swing Animations */
+      @keyframes swingIn {
+        0% {
+          opacity: 0;
+          transform: rotateY(-30deg) translateX(-50px) scale(0.9);
+        }
+        100% {
+          opacity: 1;
+          transform: rotateY(0) translateX(0) scale(1);
+        }
+      }
+
+      @keyframes swingOut {
+        0% {
+          opacity: 1;
+          transform: rotateY(0) translateX(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: rotateY(30deg) translateX(50px) scale(0.9);
+        }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Mnemonic Flashcards",
+  "description": "An aesthetic flashcard application designed to help differentiate confusing words like dominate, nominate, and intimidate using AI-generated mnemonics, Chinese translations, and examples.",
+  "requestFramePermissions": []
+}
