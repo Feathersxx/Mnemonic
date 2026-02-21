@@ -61,11 +61,21 @@ export const generateCardContent = async (input: string): Promise<FlashcardSet> 
     }
 
     const data = JSON.parse(text);
+    
+    // Generate title from words if available, otherwise use input
+    const title = data.words && data.words.length > 0 
+      ? data.words.map((w: any) => w.word).join(', ') 
+      : input;
 
     return {
       id: Date.now().toString(),
+      title: title,
       createdAt: Date.now(),
-      words: data.words
+      words: data.words,
+      reviewStats: {
+        reviewCount: 0,
+        masteryLevel: 'new'
+      }
     };
   } catch (error) {
     console.error("Error generating flashcard:", error);

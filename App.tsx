@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, ChevronLeft, ChevronRight, Shuffle, Clock, LayoutGrid, Palette, Star, Search } from 'lucide-react';
 import { FlashcardSet } from './types';
-import { INITIAL_CARDS } from './constants';
+import { cardStore } from './services/cardStore';
 import { generateCardContent } from './services/geminiService';
 import Flashcard from './components/Flashcard';
 import AddWordModal from './components/AddWordModal';
+import BatchAddModal from './components/BatchAddModal';
 import Overview from './components/Overview';
 
 type SortMode = 'LATEST' | 'RANDOM';
@@ -19,12 +20,14 @@ const BG_COLORS = [
 ];
 
 export default function App() {
-  const [cards, setCards] = useState<FlashcardSet[]>(INITIAL_CARDS);
+  const [cards, setCards] = useState<FlashcardSet[]>(() => cardStore.getAll());
   const [sortMode, setSortMode] = useState<SortMode>('LATEST');
   const [viewMode, setViewMode] = useState<ViewMode>('FLASHCARD');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
   
@@ -39,11 +42,8 @@ export default function App() {
   }, [bgColor]);
 
   const toggleBookmark = (id: string) => {
-    setCards(prevCards => 
-      prevCards.map(card => 
-        card.id === id ? { ...card, isBookmarked: !card.isBookmarked } : card
-      )
-    );
+    cardStore.toggleBookmark(id);
+    setCards(cardStore.getAll());
   };
 
   // Derived state for display order
@@ -116,7 +116,8 @@ export default function App() {
     setIsLoading(true);
     try {
       const newCardSet = await generateCardContent(input);
-      setCards(prev => [...prev, newCardSet]); 
+      cardStore.save(newCardSet);
+      setCards(cardStore.getAll()); 
       setIsModalOpen(false);
       
       // Reset to latest to show the new card first
@@ -127,6 +128,37 @@ export default function App() {
     } catch (error) {
       console.error("Failed to generate card:", error);
       alert("Could not generate card. Please check the API key and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBatchAdd = async (groups: string[]) => {
+    setIsLoading(true);
+    try {
+      // Process sequentially to avoid overwhelming the API
+      for (const group of groups) {
+        if (!group.trim()) continue;
+        try {
+          const newCardSet = await generateCardContent(group);
+          cardStore.save(newCardSet);
+        } catch (error) {
+          console.error(`Failed to generate card for group: ${group}`, error);
+          // Continue with next group even if one fails
+        }
+      }
+      
+      setCards(cardStore.getAll());
+      setIsBatchModalOpen(false);
+      
+      // Reset to latest to show the new cards
+      setSortMode('LATEST'); 
+      setShowBookmarkedOnly(false);
+      setCurrentIndex(0);
+      setIsFlipped(false);
+    } catch (error) {
+      console.error("Batch generation error:", error);
+      alert("An error occurred during batch generation.");
     } finally {
       setIsLoading(false);
     }
@@ -159,6 +191,46 @@ export default function App() {
     
     setViewMode('FLASHCARD');
     setIsFlipped(false);
+  };
+
+  const handleDelete = (id: string) => {
+    cardStore.delete(id);
+    setCards(cardStore.getAll());
+    // If deleted card was current, adjust index
+    if (currentIndex >= cards.length - 1) {
+      setCurrentIndex(Math.max(0, cards.length - 2));
+    }
+  };
+
+  const handleExport = () => {
+    const json = cardStore.exportData();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().split('T')[0];
+    a.download = `mnemonic-flashcards-backup-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        const success = cardStore.importData(content);
+        if (success) {
+          setCards(cardStore.getAll());
+          alert('Import successful!');
+        } else {
+          alert('Import failed. Invalid file format.');
+        }
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -206,11 +278,12 @@ export default function App() {
              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-sage-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">{sortMode === 'LATEST' ? 'Newest' : 'Random'}</span>
           </button>
 
-          <button 
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className={`p-2 rounded-lg transition-all relative ${showColorPicker ? 'bg-white text-sage-900 shadow-sm' : 'text-sage-600 hover:bg-white hover:text-sage-900'}`}
+           <div 
+            className={`p-2 rounded-lg transition-all relative cursor-pointer ${showColorPicker ? 'bg-white text-sage-900 shadow-sm' : 'text-sage-600 hover:bg-white hover:text-sage-900'}`}
           >
-            <Palette size={18} />
+            <button onClick={() => setShowColorPicker(!showColorPicker)} className="flex items-center justify-center w-full h-full">
+              <Palette size={18} />
+            </button>
             
             {showColorPicker && (
               <div className="absolute top-full right-0 mt-3 p-2 bg-white/90 backdrop-blur rounded-xl shadow-xl border border-white/50 flex gap-2 animate-[fadeIn_0.2s_ease-out] z-50">
@@ -225,15 +298,43 @@ export default function App() {
                 ))}
               </div>
             )}
-          </button>
+          </div>
 
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-sage-900 text-white rounded-lg shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all font-medium text-sm ml-2"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add</span>
-          </button>
+           <div className="relative ml-2">
+            <button 
+              onClick={() => setShowAddMenu(!showAddMenu)}
+              className="flex items-center gap-2 px-4 py-2 bg-sage-900 text-white rounded-lg shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all font-medium text-sm"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add</span>
+            </button>
+            
+            {showAddMenu && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-sage-100 overflow-hidden z-50 animate-[fadeIn_0.1s_ease-out]">
+                <button
+                  onClick={() => {
+                    setIsModalOpen(true);
+                    setShowAddMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-sage-700 hover:bg-sage-50 hover:text-sage-900 transition-colors flex items-center gap-2"
+                >
+                  <Plus size={14} />
+                  Add Single Group
+                </button>
+                <div className="h-px bg-sage-50"></div>
+                <button
+                  onClick={() => {
+                    setIsBatchModalOpen(true);
+                    setShowAddMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-sage-700 hover:bg-sage-50 hover:text-sage-900 transition-colors flex items-center gap-2"
+                >
+                  <LayoutGrid size={14} />
+                  Batch Add
+                </button>
+              </div>
+            )}
+           </div>
         </div>
       </header>
 
@@ -299,6 +400,9 @@ export default function App() {
         <Overview 
           cards={cards} 
           onSelect={handleOverviewSelect} 
+          onDelete={handleDelete}
+          onExport={handleExport}
+          onImport={handleImport}
           onClose={() => setViewMode('FLASHCARD')} 
         />
       )}
@@ -308,6 +412,15 @@ export default function App() {
         <AddWordModal 
           onClose={() => setIsModalOpen(false)} 
           onAdd={handleAddWord} 
+          isLoading={isLoading} 
+        />
+      )}
+
+      {/* Batch Add Modal */}
+      {isBatchModalOpen && (
+        <BatchAddModal 
+          onClose={() => setIsBatchModalOpen(false)} 
+          onAdd={handleBatchAdd} 
           isLoading={isLoading} 
         />
       )}

@@ -12,9 +12,17 @@ export interface WordData {
   examples: BilingualExample[];
 }
 
+export interface ReviewStats {
+  reviewCount: number;
+  lastReviewDate?: number;
+  masteryLevel?: 'new' | 'learning' | 'mastered';
+}
+
 export interface FlashcardSet {
   id: string;
+  title: string;
   createdAt: number;
   words: WordData[];
   isBookmarked?: boolean;
+  reviewStats?: ReviewStats;
 }

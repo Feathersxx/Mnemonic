@@ -3,7 +3,9 @@ import { FlashcardSet } from './types';
 export const INITIAL_CARDS: FlashcardSet[] = [
   {
     id: 'init-1',
+    title: 'Dominate, Nominate, Intimidate',
     createdAt: Date.now(),
+    reviewStats: { reviewCount: 0, masteryLevel: 'new' },
     words: [
       {
         word: 'Dominate',
